@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, VideoUnavailable
+from youtube_transcript_api.proxies import GenericProxyConfig
 import re
 import os
 
@@ -19,8 +20,15 @@ def get_transcript():
     if not video_id:
         return jsonify({'error': 'Invalid YouTube URL'}), 400
 
+    ytt_api = YouTubeTranscriptApi(
+        proxy_config=GenericProxyConfig(
+            http_url="http://50.223.246.237:80",
+            https_url="https://170.106.136.15:13001",
+        )
+    )
+    
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        transcript = ytt_api.get_transcript(video_id)
         return jsonify({'transcript': transcript})
     except TranscriptsDisabled:
         return jsonify({'error': 'Transcripts are disabled for this video'}), 403
