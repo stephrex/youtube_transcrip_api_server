@@ -29,8 +29,8 @@ def get_transcript():
     try:
         transcript_list = ytt_api.list('video_id')
         for transcript in transcript_list:
-        print(transcript.fetch())
-        transcript = ytt_api.get_transcript(video_id)
+            print(transcript.fetch())
+            transcript = ytt_api.get_transcript(video_id)
         return jsonify({'transcript': transcript})
     except TranscriptsDisabled:
         return jsonify({'error': 'Transcripts are disabled for this video'}), 403
