@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, VideoUnavailable
 from youtube_transcript_api.formatters import TextFormatter
-from youtube_transcript_api._errors import TooManyRequests
 from youtube_transcript_api.proxies import GenericProxyConfig
 import re
 import os
@@ -50,8 +49,6 @@ def get_transcript():
         return jsonify({'error': 'Transcripts are disabled for this video'}), 403
     except VideoUnavailable:
         return jsonify({'error': 'Video is unavailable'}), 404
-    except TooManyRequests:
-        return jsonify({'error': 'Too many requests. Please slow down.'}), 429
     except Exception as e:
         return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
 
