@@ -35,8 +35,7 @@ def get_transcript():
         transcript = YouTubeTranscriptApi.get_transcript(
             video_id,
             # proxies=proxy_config,
-            cookies=None,
-            headers=headers  # <- Custom user-agent header
+            cookies=None
         )
 
         # Format transcript to plain text
