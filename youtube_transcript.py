@@ -21,8 +21,8 @@ headers = {
 }
 
 # Proxy config (optional, set via environment variable or leave as None)
-proxy = os.environ.get("HTTP_PROXY")  # Format: http://username:password@ip:port
-proxy_config = GenericProxyConfig(proxy_url=proxy) if proxy else None
+# proxy = os.environ.get("HTTP_PROXY")  # Format: http://username:password@ip:port
+# proxy_config = GenericProxyConfig(proxy_url=proxy) if proxy else None
 
 @app.route('/transcript', methods=['POST'])
 def get_transcript():
@@ -35,7 +35,7 @@ def get_transcript():
     try:
         transcript = YouTubeTranscriptApi.get_transcript(
             video_id,
-            proxies=proxy_config,
+            # proxies=proxy_config,
             cookies=None,
             headers=headers  # <- Custom user-agent header
         )
