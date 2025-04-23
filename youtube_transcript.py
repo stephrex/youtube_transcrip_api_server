@@ -20,7 +20,7 @@ def get_transcript():
     if not video_id:
         return jsonify({'error': 'Invalid YouTube URL'}), 400
     try:
-        transcript_list = YouTubeTranscriptApi().list('video_id')
+        transcript_list = YouTubeTranscriptApi().list(video_id)
         for transcript in transcript_list:
             print(transcript.fetch())
             transcript = ytt_api.get_transcript(video_id)
