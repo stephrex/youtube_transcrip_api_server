@@ -26,8 +26,10 @@ def get_transcript():
             https_url="https://170.106.136.15:13001",
         )
     )
-    
     try:
+        transcript_list = ytt_api.list('video_id')
+        for transcript in transcript_list:
+        print(transcript.fetch())
         transcript = ytt_api.get_transcript(video_id)
         return jsonify({'transcript': transcript})
     except TranscriptsDisabled:
