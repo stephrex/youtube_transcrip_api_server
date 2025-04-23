@@ -19,15 +19,8 @@ def get_transcript():
 
     if not video_id:
         return jsonify({'error': 'Invalid YouTube URL'}), 400
-
-    ytt_api = YouTubeTranscriptApi(
-        proxy_config=GenericProxyConfig(
-            http_url="http://50.223.246.237:80",
-            https_url="https://170.106.136.15:13001",
-        )
-    )
     try:
-        transcript_list = ytt_api.list('video_id')
+        transcript_list = YouTubeTranscriptApi().list('video_id')
         for transcript in transcript_list:
             print(transcript.fetch())
             transcript = ytt_api.get_transcript(video_id)
