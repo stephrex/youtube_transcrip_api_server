@@ -1,34 +1,55 @@
-from youtube_transcript_api.proxies import GenericProxyConfig
-from youtube_transcript_api.formatters import TextFormatter
-import os
+# from youtube_transcript_api.proxies import GenericProxyConfig
+# from youtube_transcript_api.formatters import TextFormatter
+# import os
+# import re
+# from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, VideoUnavailable
+# from flask import Flask, request, jsonify
 import re
-from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, VideoUnavailable
+import os
+import requests
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
+
+# Helper: Extract video ID from YouTube URL
 
 
 def extract_video_id(url):
     match = re.search(r"(?:v=|youtu\.be/)([A-Za-z0-9_-]{11})", url)
     return match.group(1) if match else None
 
+# Endpoint to get transcript via SearchAPI
+
 
 @app.route('/transcript', methods=['POST'])
 def get_transcript():
-    import requests
+    data = request.json
+    url = data.get('url')
+    video_id = extract_video_id(url)
 
-    url = "https://www.searchapi.io/api/v1/search"
+    if not video_id:
+        return jsonify({'error': 'Invalid YouTube URL'}), 400
+
+    api_url = "https://www.searchapi.io/api/v1/search"
     params = {
         "engine": "youtube_transcripts",
-        "video_id": "0e3GPea1Tyg"
+        "video_id": video_id,
+        # Make sure to set this in your environment
+        "api_key": "zwxLP7UhbXLsMC2XAfUS9xD3"
     }
 
-    response = requests.get(url, params=params)
-    print(response.text)
+    response = requests.get(api_url, params=params)
+
+    if response.status_code != 200:
+        return jsonify({'error': f"API request failed: {response.text}"}), response.status_code
+
+    return jsonify(response.json())
 
 
-port = int(os.environ.get('PORT', 5000))  # Default to 5000 locally
-app.run(host='0.0.0.0', port=port)
+# Run app safely
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5050))
+    app.run(debug=True, host='0.0.0.0', port=port)
 
 
 #     url = request.json.get('url')
