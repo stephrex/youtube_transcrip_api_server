@@ -39,6 +39,7 @@ def extract_pdf_text():
 
         # Fetch the PDF from the URL
         response = requests.get(url)
+        print(response)
         response.raise_for_status()  # Raises exception for 4xx/5xx responses
         pdf_file = io.BytesIO(response.content)
 
