@@ -17,6 +17,15 @@ logger = get_logger(__name__)
 # Create Flask app
 app = Flask(__name__)
 
+def extract_text_from_docx(docx_file) -> str:
+    """Extract text content from a DOCX file."""
+    try:
+        doc = docx.Document(docx_file)
+        return "\n".join([para.text for para in doc.paragraphs])
+    except Exception as e:
+        logger.error(f"Failed to extract text from DOCX: {str(e)}")
+        raise ValueError(f"Failed to extract text from DOCX: {str(e)}")
+        
 def extract_text_from_pdf(pdf_file) -> str:
     """Extract text content from a PDF file."""
     try:
@@ -29,43 +38,41 @@ def extract_text_from_pdf(pdf_file) -> str:
         logger.error(f"Failed to extract text from PDF: {str(e)}")
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-@app.route("/extract_pdf_text/", methods=["POST"])
-def extract_pdf_text():
-    """Extract text content from a PDF URL."""
+@app.route("/extract_file_text/", methods=["POST"])
+def extract_file_text():
+    """
+    Extract text content from a PDF or DOCX file URL.
+    JSON Body should contain: { "url": "...", "type": "pdf" or "docx" }
+    """
     try:
-        # Get the URL from the JSON body of the request
         data = request.get_json()
         url = data.get('url')
+        file_type = data.get('type', '').lower()
 
-        # Fetch the PDF from the URL
+        if not url or file_type not in ['pdf', 'docx']:
+            return jsonify({"success": False, "error": "Missing or invalid 'url' or 'type'"}), 400
+
         response = requests.get(url)
-        print(response)
-        response.raise_for_status()  # Raises exception for 4xx/5xx responses
-        pdf_file = io.BytesIO(response.content)
+        response.raise_for_status()
+        file_bytes = io.BytesIO(response.content)
 
-        # Extract text from the PDF
-        text = extract_text_from_pdf(pdf_file)
+        if file_type == 'pdf':
+            text = extract_text_from_pdf(file_bytes)
+        elif file_type == 'docx':
+            text = extract_text_from_docx(file_bytes)
+        else:
+            return jsonify({"success": False, "error": "Unsupported file type"}), 400
 
-        # Return the extracted text
         return jsonify({
             "success": True,
             "data": {
                 "text": text
             }
         })
-    
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch PDF from URL: {str(e)}")
-        return jsonify({
-            "success": False,
-            "error": f"Failed to fetch PDF from URL: {str(e)}"
-        }), 400
+
     except Exception as e:
-        logger.error(str(e))
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 500
+        logger.error(f"Text extraction failed: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
