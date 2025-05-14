@@ -2,7 +2,7 @@ import os
 import io
 import logging
 from typing import Dict, Any
-
+import docx
 import PyPDF2
 import requests
 from flask import Flask, request, jsonify
