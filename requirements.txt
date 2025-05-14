@@ -4,3 +4,4 @@ pydantic==1.10.2
 uvicorn==0.18.2
 PyPDF2
 flask
+docx
