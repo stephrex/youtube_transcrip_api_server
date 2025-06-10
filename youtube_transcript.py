@@ -6,16 +6,58 @@ import docx
 import PyPDF2
 import requests
 from flask import Flask, request, jsonify
+import asyncio
+from urllib.parse import urlparse, urlunparse
 
-# Setup logger
+import markdownify
+import readabilipy.simple_json
+from protego import Protego
+from httpx import AsyncClient, HTTPError
+
+app = Flask(__name__)
+
+DEFAULT_USER_AGENT = "Mozilla/5.0 (compatible; StandaloneFetcher/1.0)"
+
+# Global shared client
+shared_client = AsyncClient(follow_redirects=True, timeout=10.0)
+
+def extract_content_from_html(html: str) -> str:
+    ret = readabilipy.simple_json.simple_json_from_html_string(html, use_readability=True)
+    if not ret["content"]:
+        return "<error>Failed to simplify HTML content</error>"
+    return markdownify.markdownify(ret["content"], heading_style=markdownify.ATX)
+
+
+def get_robots_txt_url(url: str) -> str:
+    parsed = urlparse(url)
+    return urlunparse((parsed.scheme, parsed.netloc, "/robots.txt", "", "", ""))
+
+
+async def check_robots_txt(url: str, user_agent: str):
+    robots_url = get_robots_txt_url(url)
+    try:
+        response = await shared_client.get(robots_url, headers={"User-Agent": user_agent})
+    except HTTPError as e:
+        print(f"Warning: Failed to fetch robots.txt: {e}")
+        return
+
+    if response.status_code in (401, 403):
+        raise Exception(f"Access denied to robots.txt at {robots_url}")
+    elif 400 <= response.status_code < 500:
+        return
+
+    robot_txt = "\n".join(
+        line for line in response.text.splitlines() if not line.strip().startswith("#")
+    )
+    parser = Protego.parse(robot_txt)
+    if not parser.can_fetch(url, user_agent):
+        raise Exception(f"Blocked by robots.txt at {robots_url}")
+
 def get_logger(name: str):
     logger = logging.getLogger(name)
     return logger
 
 logger = get_logger(__name__)
-
-# Create Flask app
-app = Flask(__name__)
 
 def extract_text_from_docx(docx_file) -> str:
     """Extract text content from a DOCX file."""
@@ -73,6 +115,35 @@ def extract_file_text():
     except Exception as e:
         logger.error(f"Text extraction failed: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/fetch_url/", methods=["POST"])
+async def fetch_url_content(
+    url: str, user_agent: str = DEFAULT_USER_AGENT, force_raw: bool = False, ignore_robots: bool = False
+) -> str:
+    if not ignore_robots:
+        await check_robots_txt(url, user_agent)
+
+    try:
+        response = await shared_client.get(url, headers={"User-Agent": user_agent})
+    except HTTPError as e:
+        raise Exception(f"Failed to fetch URL: {e}")
+
+    if response.status_code >= 400:
+        raise Exception(f"Failed to fetch URL - Status Code: {response.status_code}")
+
+    content_type = response.headers.get("content-type", "")
+    text = response.text
+
+    if "<html" in text[:100] or "text/html" in content_type or not content_type:
+        if force_raw:
+            return jsonify({"Text": text})
+        text = extract_content_from_html(text)
+        return jsonify({"Text": text})
+
+    return jsonify({"Content_Type": content_type, 
+                    "Text": text})
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
