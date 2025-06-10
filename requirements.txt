@@ -5,3 +5,7 @@ uvicorn==0.18.2
 PyPDF2
 flask
 python-docx
+httpx
+markdownify
+readabilipy
+protego
