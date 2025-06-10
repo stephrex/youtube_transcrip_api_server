@@ -117,7 +117,7 @@ def extract_file_text():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/fetch_url/", methods=["POST"])
-async def fetch_url_content():
+def fetch_url_content():
     try:
         data = request.get_json()
         url = data.get("url")
@@ -128,33 +128,36 @@ async def fetch_url_content():
         if not url:
             return jsonify({"success": False, "error": "Missing 'url' in request"}), 400
 
-        if not ignore_robots:
-            await check_robots_txt(url, user_agent)
+        async def fetch():
+            if not ignore_robots:
+                await check_robots_txt(url, user_agent)
 
-        try:
-            response = await shared_client.get(url, headers={"User-Agent": user_agent})
-        except HTTPError as e:
-            return jsonify({"success": False, "error": f"Failed to fetch URL: {str(e)}"}), 500
+            try:
+                response = await shared_client.get(url, headers={"User-Agent": user_agent})
+            except HTTPError as e:
+                return {"error": f"Failed to fetch URL: {str(e)}"}, 500
 
-        if response.status_code >= 400:
-            return jsonify({"success": False, "error": f"Failed to fetch URL - Status Code: {response.status_code}"}), response.status_code
+            if response.status_code >= 400:
+                return {"error": f"Failed to fetch URL - Status Code: {response.status_code}"}, response.status_code
 
-        content_type = response.headers.get("content-type", "")
-        text = response.text
+            content_type = response.headers.get("content-type", "")
+            text = response.text
 
-        if "<html" in text[:100].lower() or "text/html" in content_type or not content_type:
-            if force_raw:
-                return jsonify({"success": True, "data": {"text": text}})
-            simplified = extract_content_from_html(text)
-            return jsonify({"success": True, "data": {"text": simplified}})
-        else:
-            return jsonify({
-                "success": True,
-                "data": {
+            if "<html" in text[:100].lower() or "text/html" in content_type or not content_type:
+                if force_raw:
+                    return {"text": text}, 200
+                simplified = extract_content_from_html(text)
+                return {"text": simplified}, 200
+            else:
+                return {
                     "content_type": content_type,
                     "text": text
-                }
-            })
+                }, 200
+
+        result, status_code = asyncio.run(fetch())
+        if "error" in result:
+            return jsonify({"success": False, "error": result["error"]}), status_code
+        return jsonify({"success": True, "data": result}), status_code
 
     except Exception as e:
         logger.error(f"Error in fetch_url_content: {str(e)}")
